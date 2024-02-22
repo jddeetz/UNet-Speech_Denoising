@@ -1,0 +1,9 @@
+numpy>=1.22.4
+torch
+torchaudio
+torchsummary
+unittest
+configparser>=5.3.0 # Required for MS-SNSD dataset generation
+glob2>=0.7 # Required for MS-SNSD dataset generation
+scipy>=1.6.2 # Required for MS-SNSD dataset generation
+soundfile>=0.11.0 # Required for MS-SNSD dataset generation
