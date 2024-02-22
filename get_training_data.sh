@@ -1,7 +1,6 @@
 # Use pip3 to install the required modules
 pip3 install -r requirements.txt
 
-
 ##### MAKE WAV FILES FROM SYNTHETIC DATA
 # Clone this repository, which allows us to generate audio with synthetic noise on top of it.
 git clone git@github.com:microsoft/MS-SNSD.git

@@ -10,12 +10,16 @@ import unittest
 
 import torch
 
-# import predict
-
 class SpectrogramTests(unittest.TestCase):
     def test_torch_version(self):
         # Tests for versions of torch
         self.assertEqual(torch.__version__, '2.2.0')
+
+    def test_torch_version(self):
+        # I didn't finish this yet, but I have outlined the steps here
+        # Defines unit tests for the training data.
+        # We want to be sure that the definition of out training set is what we say it is.
+        pass
 
     def test_unet_conv2d(self):
         # I didn't finish this yet, but I have outlined the steps here
@@ -25,12 +29,17 @@ class SpectrogramTests(unittest.TestCase):
         # Put the UNet in evaluation mode
         # Predict the clean spectrogram using the UNet
         # Perform tests to compare the predicted vs. real clean spectrograms
-        self.assertTrue(True)
+        pass
 
     def test_unet_tsconv(self):
         # Same as above, but with TSConv
-        self.assertTrue(True)
+        pass
 
-    def test
+    def test_unet_conv2d_accuracy(self):
+        # I didn't finish this yet, but I have outlined the steps here
+        # The basic principle here is to load the model and predict the entire test set.
+        # Once the clean and noisy spectrograms in the test set are compared, we can unit test the models accuracy
+        # This will ensure that the performance of our model doesn't accidentally change with code changes
+        pass
 
     
