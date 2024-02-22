@@ -2,9 +2,12 @@
 # Authors: jddeetz@gmail.com
 """
 Tests:
-- For both models (UNet_Conv2d and UNet_TSConv) test output on a specific file to ensure it matches
+- Test to make sure the pytorch version has not changed.
+- Test the shape and characteristics of the training data, to make sure it is consistent with the model and has not changed.
+- For both trained models (UNet_Conv2d and UNet_TSConv) test output on a specific file to ensure it matches.
+- Test the accuracy of both models for all test set samples. Make model accuracy explicit here.
 
-Run this with: python3 -m tests.test_models
+Run this with: python3 -m tests.test_trained_models
 """
 import unittest
 

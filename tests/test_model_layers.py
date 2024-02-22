@@ -2,11 +2,11 @@
 # Authors: jddeetz@gmail.com
 """
 Tests:
-- Version torch
-- Shape/definition of models on disk to make sure they align with definitions in code
+- Version of torch, to make sure it has not changed
+- Test time shifting methodology to ensure it behaves as expected
 - Dummy input to TSConv to ensure it behaves as expected
 
-Run this with: python3 -m tests.test_models
+Run this with: python3 -m tests.test_model_layers
 """
 import unittest
 
