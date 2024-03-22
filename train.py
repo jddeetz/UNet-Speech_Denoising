@@ -6,7 +6,6 @@ This is a simple, quick, dirty version of Stochastic Gradient Descent training o
 This code is intended to be used via command line to train UNet neural network models, as defined in ./unet/unet_models.py
 
 TODO: Either load all of the files into memory, or a batch of them, to speed up training
-TODO: Refactor training code to avoid repeating similar steps for training and testing
 """
 import argparse
 import os
@@ -16,6 +15,7 @@ import numpy as np
 from torch import load, save
 from torch.nn import MSELoss
 from torch.optim import Adam
+from uniplot import plot
 
 from unet import UNet, UNet_model_cfg
 
@@ -23,6 +23,34 @@ TEST_DATA_FRACTION = 0.3
 LEARNING_RATE = 1e-3
 N_CHANNELS = 1
 NUM_EPOCHS = 10
+
+def load_spectrogram(directory: str, prefix: str, file_num: int):
+    """ This function loads a spectrogram from disk and reshapes it into the dimensions for the U-Net.
+
+    Args:
+        directory: the path of the spectrogram
+        prefix: the prefix of the file, either "clnsp" or "noisy"
+        file_num: the sample number of the file being loaded
+
+    Returns:
+        pytorch tensor
+    """
+    # Load spectrogram (This part is slow)
+    spectrogram = load("{}/{}{}.sg".format(directory, prefix, file_num))
+    return spectrogram.reshape(1, spectrogram.shape[0], spectrogram.shape[1], spectrogram.shape[2])
+
+def load_spectrograms(clean_directory: str, noisy_directory: str, file_num: int):
+    """ This is a simple function to load the clean and noisy spectrograms corresponding to a file number.
+
+    Args:
+        clean_directory: the path of the clean spectrograms
+        noisy_directory: the path of the noisy spectrograms
+        file_num: the sample number of the file being loaded
+
+    Returns:
+        clean and noisy pytorch tensors
+    """
+    return load_spectrogram(clean_directory,"clnsp",file_num), load_spectrogram(noisy_directory,"noisy",file_num)
 
 def train_model(clean_directory: str, noisy_directory: str, model_type: str):
     """ This function takes an input directory as an argument, takes all wav files, and makes spectrograms.
@@ -60,22 +88,22 @@ def train_model(clean_directory: str, noisy_directory: str, model_type: str):
     loss_fn = MSELoss(reduction='sum')
     optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
 
+    epoch_train_rmse, epoch_test_rmse = [], []
     for epoch in range(NUM_EPOCHS):
         print("#"*20)
         print("STARTING EPOCH {}".format(epoch))
         print("#"*20)
+        train_loss = []
         for file_num in train_file_nums:
             # Load clean and noisy spectrograms (This part is slow)
-            clean_sg = load("{}/clnsp{}.sg".format(clean_directory, file_num))
-            noisy_sg = load("{}/noisy{}.sg".format(noisy_directory, file_num))
-            # Reshape these to be passed into network
-            clean_sg = clean_sg.reshape(1, clean_sg.shape[0], clean_sg.shape[1], clean_sg.shape[2])
-            noisy_sg = noisy_sg.reshape(1, noisy_sg.shape[0], noisy_sg.shape[1], noisy_sg.shape[2])
+            clean_sg, noisy_sg = load_spectrograms(clean_directory, noisy_directory, file_num)
+            
             # Forward pass: compute predicted clean spectrogram by passing noisy one to the model.
             clean_sg_pred = model(noisy_sg)
 
             # Compute and print loss.
             loss = loss_fn(clean_sg_pred, clean_sg)
+            train_loss.append(loss.item())
             if file_num % 5 == 4:
                 print("Trained on file {} of {}: MSE = {}".format(file_num, num_clean_files, loss.item()))
 
@@ -93,18 +121,23 @@ def train_model(clean_directory: str, noisy_directory: str, model_type: str):
         model.eval()
         test_loss = []
         for file_num in test_file_nums:
-            # Load clean and noisy spectrograms (This part is slow)
-            clean_sg = load("{}/clnsp{}.sg".format(clean_directory, file_num))
-            noisy_sg = load("{}/noisy{}.sg".format(noisy_directory, file_num))
-            # Reshape these to be passed into network
-            clean_sg = clean_sg.reshape(1, clean_sg.shape[0], clean_sg.shape[1], clean_sg.shape[2])
-            noisy_sg = noisy_sg.reshape(1, noisy_sg.shape[0], noisy_sg.shape[1], noisy_sg.shape[2])
+            clean_sg, noisy_sg = load_spectrograms(clean_directory, noisy_directory, file_num)
             # Forward pass: compute predicted clean spectrogram by passing noisy one to the model.
             clean_sg_pred = model(noisy_sg)
             # Compute and print loss.
             loss = loss_fn(clean_sg_pred, clean_sg)
             test_loss.append(loss.item())
-        print("Mean loss of test set: MSE = {}".format(np.mean(test_loss)))
+        print("Mean loss of train set: RMSE = {}".format(np.mean(train_loss)**0.5))
+        print("Mean loss of test set: RMSE = {}".format(np.mean(test_loss)**0.5))
+
+        # Records loss between Epochs
+        epoch_train_rmse.append(np.mean(train_loss)**0.5)
+        epoch_test_rmse.append(np.mean(test_loss)**0.5)
+
+        # Plot loss as a function of epoch as ascii characters in terminal
+        print(plot([epoch_train_rmse, epoch_test_rmse], color=True, y_as_log = True,
+                   legend_labels = ["Train RMSE", "Test RMSE"],
+                   title = "Train/Test RMSE vs epoch"))
         model.train()
 
     #### Step 4: Save the NN Model
