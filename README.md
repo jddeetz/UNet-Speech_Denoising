@@ -12,5 +12,5 @@ Broadly, this repo does the following things:
 
 
 ## Getting started
-A shell script, get_training_data.sh, clones the MS-SNSD repository, makes edits to that repos config file, and generates clean and noisy datasets. Following this, the shell script generates spectrograms from the clean and noisy generated WAV files and saves them into the data/ directory. The spectrograms are saved torch tensors, with the .sg file extension. This script also installs any repositories needed to run other code in this repo. 
+A shell script, get_training_data.sh, clones the MS-SNSD repository, makes edits to that repos config file, and generates clean and noisy datasets. You can anticipate the training data requiring around 3GB of disk space. Following this, the shell script generates spectrograms from the clean and noisy generated WAV files and saves them into the data/ directory. The spectrograms are saved torch tensors, with the .sg file extension. This script also installs any repositories needed to run other code in this repo. 
 
