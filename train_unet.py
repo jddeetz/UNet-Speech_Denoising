@@ -157,7 +157,7 @@ def main() -> None:
     """ Main function for training neural networks.
 
     Example usage of this code is:
-    python3 train.py --model_type UNet_Conv2D
+    python3 train_unet.py --model_type UNet_Conv2D
 
     Where:
         clean_directory: directory of clean speech spectrograms, the default value is data/CleanSpeechSpectrograms
