@@ -8,11 +8,12 @@ This code is intended to be used via command line to train UNet neural network m
 TODO: Either load all of the files into memory, or a batch of them, to speed up training
 """
 import argparse
+import logging
 import os
 
 import glob
 import numpy as np
-from torch import load, save
+from torch import load, save, get_num_threads
 from torch.nn import MSELoss
 from torch.optim import Adam
 from uniplot import plot
@@ -22,7 +23,7 @@ from unet import UNet, UNet_model_cfg
 TEST_DATA_FRACTION = 0.3
 LEARNING_RATE = 1e-3
 N_CHANNELS = 1
-NUM_EPOCHS = 10
+NUM_EPOCHS = 20
 
 def load_spectrogram(directory: str, prefix: str, file_num: int):
     """ This function loads a spectrogram from disk and reshapes it into the dimensions for the U-Net.
@@ -88,11 +89,12 @@ def train_model(clean_directory: str, noisy_directory: str, model_type: str):
     loss_fn = MSELoss(reduction='sum')
     optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
 
+    # Prints the number of threads being used by pytorch
+    logging.info("PyTorch is using {} threads".format(get_num_threads()))
+
     epoch_train_rmse, epoch_test_rmse = [], []
     for epoch in range(NUM_EPOCHS):
-        print("#"*20)
-        print("STARTING EPOCH {}".format(epoch))
-        print("#"*20)
+        logging.info("STARTING EPOCH {}".format(epoch))
         train_loss = []
         for file_num in train_file_nums:
             # Load clean and noisy spectrograms (This part is slow)
@@ -101,11 +103,12 @@ def train_model(clean_directory: str, noisy_directory: str, model_type: str):
             # Forward pass: compute predicted clean spectrogram by passing noisy one to the model.
             clean_sg_pred = model(noisy_sg)
 
-            # Compute and print loss.
+            # Compute and print total loss, and average loss per bin.
             loss = loss_fn(clean_sg_pred, clean_sg)
-            train_loss.append(loss.item())
+            loss_per_bin = loss.item() / clean_sg.shape[2] / clean_sg.shape[3]
+            train_loss.append(loss_per_bin)
             if file_num % 5 == 4:
-                print("Trained on file {} of {}: MSE = {}".format(file_num, num_clean_files, loss.item()))
+                logging.info("Trained on file {} of {}: MSE = {}".format(file_num, num_clean_files, loss_per_bin))
 
             # Zero gradients, because otherwise they accumulate
             optimizer.zero_grad()
@@ -122,32 +125,33 @@ def train_model(clean_directory: str, noisy_directory: str, model_type: str):
         test_loss = []
         for file_num in test_file_nums:
             clean_sg, noisy_sg = load_spectrograms(clean_directory, noisy_directory, file_num)
+
             # Forward pass: compute predicted clean spectrogram by passing noisy one to the model.
             clean_sg_pred = model(noisy_sg)
-            # Compute and print loss.
-            loss = loss_fn(clean_sg_pred, clean_sg)
-            test_loss.append(loss.item())
-        print("Mean loss of train set: RMSE = {}".format(np.mean(train_loss)**0.5))
-        print("Mean loss of test set: RMSE = {}".format(np.mean(test_loss)**0.5))
-        print(clean_sg_pred)
-        print(clean_sg)
+
+            # Compute loss per bin.
+            loss_per_bin = loss_fn(clean_sg_pred, clean_sg).item() / clean_sg.shape[2] / clean_sg.shape[3]
+            test_loss.append(loss_per_bin)
+
+        logging.info("Mean loss of train set: MSE = {}".format(np.mean(train_loss)))
+        logging.info("Mean loss of test set: MSE = {}".format(np.mean(test_loss)))
 
         # Records loss between Epochs
         epoch_train_rmse.append(np.mean(train_loss)**0.5)
         epoch_test_rmse.append(np.mean(test_loss)**0.5)
 
         # Plot loss as a function of epoch as ascii characters in terminal
-        print(plot([epoch_train_rmse, epoch_test_rmse], color=True, y_as_log = True,
-                   legend_labels = ["Train RMSE", "Test RMSE"],
-                   title = "Train/Test RMSE vs epoch"))
+        logging.info(plot([epoch_train_rmse, epoch_test_rmse], color=True, y_as_log = True,
+                     legend_labels = ["Train RMSE", "Test RMSE"],
+                     title = "Train/Test RMSE vs epoch"))
         model.train()
 
     #### Step 4: Save the NN Model
     # Create the models directory if it does not exist
     if not os.path.exists("models"):
         os.mkdir("models")
-    print("Saving model to disk")
-    save(model, "models/{}.pt".format(model_type))
+    logging.info("Saving model to disk")
+    save(model.state_dict(), "models/{}.pt".format(model_type))
 
 def main() -> None:
     """ Main function for training neural networks.
@@ -160,6 +164,10 @@ def main() -> None:
         noisy_directory: directory of noisy speech spectrograms, the default value is data/NoisySpeechSpectrograms
         model_type: the architecture of the U-Net model, either UNet_Conv2D or UNet_TSConv, default is UNet_Conv2D
     """
+    # Initialize the logger
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s",
+                        handlers=[logging.FileHandler("unet_training.log"), logging.StreamHandler()])
+
     # Add and Parse Arguments
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument(
